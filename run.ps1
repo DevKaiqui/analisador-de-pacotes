@@ -5,6 +5,7 @@ param(
     [string]$Filter = "ip or arp",
     [switch]$Promiscuous,
     [switch]$ShowSensitive,
+    [switch]$Help,
     [switch]$List
 )
 
@@ -68,6 +69,10 @@ try {
         ($classpath -join ";"),
         "Main"
     )
+
+    if ($Help) {
+        $javaArgs += "--help"
+    }
 
     if ($List) {
         $javaArgs += "--list"

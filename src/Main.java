@@ -1,3 +1,7 @@
+import java.io.File;
+import java.net.InetAddress;
+import java.util.List;
+
 import org.pcap4j.core.BpfProgram;
 import org.pcap4j.core.NotOpenException;
 import org.pcap4j.core.PcapHandle;
@@ -11,10 +15,6 @@ import org.pcap4j.packet.IpPacket;
 import org.pcap4j.packet.Packet;
 import org.pcap4j.packet.TcpPacket;
 import org.pcap4j.packet.UdpPacket;
-
-import java.io.File;
-import java.net.InetAddress;
-import java.util.List;
 
 public class Main {
     private static final int SNAPSHOT_LENGTH = 256;
