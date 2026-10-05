@@ -4,15 +4,21 @@ import br.com.analisador.Npcap;
 import br.com.analisador.PacketAnalyzer;
 import br.com.analisador.Placas;
 import br.com.analisador.SensitiveDataMasker;
+import br.com.analisador.detector.Alerta;
 import br.com.analisador.detector.DetectorDeAmeacas;
 import br.com.analisador.detector.Mascara;
+import br.com.analisador.detector.Severidade;
 
 import org.pcap4j.core.PcapNetworkInterface;
 import org.pcap4j.packet.Packet;
 
 import javax.swing.*;
+import javax.swing.border.TitledBorder;
+import javax.swing.table.DefaultTableCellRenderer;
 import java.awt.*;
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -22,13 +28,35 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public final class JanelaPrincipal extends JFrame {
 
+    private static final Color VERDE = new Color(0x2E, 0x7D, 0x32);
+    private static final Color VERMELHO = new Color(0xC6, 0x28, 0x28);
+    private static final Color CINZA = new Color(0x9E, 0x9E, 0x9E);
+    private static final Color ZEBRA = new Color(0xF2, 0xF4, 0xF7);
+
+    /** Filtro BPF pronto para o combo de filtros rápidos. */
+    private record FiltroRapido(String nome, String filtro) {
+        @Override public String toString() { return nome; }
+    }
+
     private final JComboBox<ItemInterface> comboInterfaces = new JComboBox<>();
-    private final JTextField campoFiltro = new JTextField(18);
+    private final JTextField campoFiltro = new JTextField(16);
+    private final JComboBox<FiltroRapido> comboFiltrosRapidos = new JComboBox<>(new FiltroRapido[]{
+            new FiltroRapido("Tudo", ""),
+            new FiltroRapido("TCP", "tcp"),
+            new FiltroRapido("DNS (udp port 53)", "udp port 53"),
+            new FiltroRapido("ARP", "arp"),
+    });
     private final JCheckBox checkSensivel = new JCheckBox("Mostrar dados sensíveis");
     private final JButton botaoIniciar = new JButton("Iniciar");
     private final JButton botaoParar = new JButton("Parar");
     private final JButton botaoLimpar = new JButton("Limpar");
+    private final JLabel bolinhaStatus = new JLabel("●");
+    private final JLabel textoStatusCaptura = new JLabel("Parado");
     private final JLabel status = new JLabel("Pronto.");
+
+    private final JLabel lblPacotes = new JLabel("Pacotes: 0");
+    private final Map<Severidade, JLabel> lblAlertasPorSeveridade = new EnumMap<>(Severidade.class);
+    private final Map<Severidade, Integer> contagemAlertas = new EnumMap<>(Severidade.class);
 
     private final ModeloPacotes modeloPacotes = new ModeloPacotes(5000);
     private final ModeloAlertas modeloAlertas = new ModeloAlertas();
@@ -44,29 +72,62 @@ public final class JanelaPrincipal extends JFrame {
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setSize(1000, 640);
         setLocationRelativeTo(null);
+        for (Severidade s : Severidade.values()) contagemAlertas.put(s, 0);
         montarLayout();
         carregarInterfaces();
         botaoParar.setEnabled(false);
     }
 
     private void montarLayout() {
-        JPanel topo = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        topo.add(new JLabel("Placa:"));
-        topo.add(comboInterfaces);
-        topo.add(new JLabel("Filtro:"));
-        topo.add(campoFiltro);
-        topo.add(checkSensivel);
-        topo.add(botaoIniciar);
-        topo.add(botaoParar);
-        topo.add(botaoLimpar);
+        JPanel painelCaptura = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 4));
+        painelCaptura.setBorder(tituloSecao("Captura"));
+        painelCaptura.add(new JLabel("Placa:"));
+        painelCaptura.add(comboInterfaces);
+        painelCaptura.add(botaoIniciar);
+        painelCaptura.add(botaoParar);
+
+        JPanel painelFiltro = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 4));
+        painelFiltro.setBorder(tituloSecao("Filtro"));
+        painelFiltro.add(new JLabel("BPF:"));
+        painelFiltro.add(campoFiltro);
+        painelFiltro.add(new JLabel("Rápidos:"));
+        painelFiltro.add(comboFiltrosRapidos);
+
+        JPanel painelExibicao = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 4));
+        painelExibicao.setBorder(tituloSecao("Exibição"));
+        painelExibicao.add(checkSensivel);
+        painelExibicao.add(botaoLimpar);
+        bolinhaStatus.setForeground(CINZA);
+        painelExibicao.add(bolinhaStatus);
+        painelExibicao.add(textoStatusCaptura);
+
+        estilizarBotaoPrimario(botaoIniciar, VERDE);
+        estilizarBotaoPrimario(botaoParar, VERMELHO);
+
+        JPanel controles = new JPanel();
+        controles.setLayout(new BoxLayout(controles, BoxLayout.Y_AXIS));
+        JPanel linha1 = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        linha1.add(painelCaptura);
+        linha1.add(painelFiltro);
+        linha1.add(painelExibicao);
+        controles.add(linha1);
+
+        JPanel painelResumo = montarPainelResumo();
+
+        JPanel topo = new JPanel(new BorderLayout(8, 4));
+        topo.add(controles, BorderLayout.CENTER);
+        topo.add(painelResumo, BorderLayout.EAST);
 
         JTable tabelaPacotes = new JTable(modeloPacotes);
         tabelaPacotes.getColumnModel().getColumn(0).setMaxWidth(60);
+        aplicarZebra(tabelaPacotes);
+        deixarCabecalhoEmNegrito(tabelaPacotes);
 
         JTable tabelaAlertas = new JTable(modeloAlertas);
         tabelaAlertas.setDefaultRenderer(Object.class, new RenderizadorSeveridade());
         tabelaAlertas.getColumnModel().getColumn(0).setMaxWidth(70);
         tabelaAlertas.getColumnModel().getColumn(1).setMaxWidth(90);
+        deixarCabecalhoEmNegrito(tabelaAlertas);
 
         JScrollPane painelPacotes = new JScrollPane(tabelaPacotes);
         painelPacotes.setBorder(BorderFactory.createTitledBorder("Pacotes"));
@@ -81,6 +142,11 @@ public final class JanelaPrincipal extends JFrame {
         add(divisao, BorderLayout.CENTER);
         add(status, BorderLayout.SOUTH);
 
+        comboFiltrosRapidos.addActionListener(e -> {
+            FiltroRapido f = (FiltroRapido) comboFiltrosRapidos.getSelectedItem();
+            if (f != null) campoFiltro.setText(f.filtro());
+        });
+
         botaoIniciar.addActionListener(e -> iniciar());
         botaoParar.addActionListener(e -> {
             parar();
@@ -92,7 +158,72 @@ public final class JanelaPrincipal extends JFrame {
             modeloPacotes.limpar();
             modeloAlertas.limpar();
             contador.set(0);
+            for (Severidade s : Severidade.values()) contagemAlertas.put(s, 0);
+            atualizarResumo();
         });
+    }
+
+    private JPanel montarPainelResumo() {
+        JPanel painel = new JPanel(new GridLayout(0, 1, 2, 2));
+        painel.setBorder(tituloSecao("Resumo"));
+        lblPacotes.setFont(lblPacotes.getFont().deriveFont(Font.BOLD));
+        painel.add(lblPacotes);
+        for (Severidade s : Severidade.values()) {
+            JLabel lbl = new JLabel(s.name() + ": 0");
+            lbl.setFont(lbl.getFont().deriveFont(Font.BOLD));
+            lbl.setForeground(corResumo(s));
+            lblAlertasPorSeveridade.put(s, lbl);
+            painel.add(lbl);
+        }
+        return painel;
+    }
+
+    private static Color corResumo(Severidade s) {
+        return switch (s) {
+            case CRITICA -> new Color(0xB0, 0x00, 0x20);
+            case ALTA -> new Color(0xC6, 0x28, 0x28);
+            case MEDIA -> new Color(0x8A, 0x6D, 0x00);
+            case BAIXA -> new Color(0x0C, 0x5A, 0x6E);
+        };
+    }
+
+    private void atualizarResumo() {
+        lblPacotes.setText("Pacotes: " + contador.get());
+        for (Severidade s : Severidade.values()) {
+            lblAlertasPorSeveridade.get(s).setText(s.name() + ": " + contagemAlertas.get(s));
+        }
+    }
+
+    private static TitledBorder tituloSecao(String texto) {
+        TitledBorder borda = BorderFactory.createTitledBorder(texto);
+        borda.setTitleFont(borda.getTitleFont().deriveFont(Font.BOLD));
+        return borda;
+    }
+
+    private static void estilizarBotaoPrimario(JButton botao, Color cor) {
+        botao.setBackground(cor);
+        botao.setForeground(Color.WHITE);
+        botao.setOpaque(true);
+        botao.setContentAreaFilled(true);
+        botao.setBorderPainted(false);
+        botao.setFocusPainted(false);
+    }
+
+    private static void aplicarZebra(JTable tabela) {
+        tabela.setDefaultRenderer(Object.class, new DefaultTableCellRenderer() {
+            @Override
+            public Component getTableCellRendererComponent(JTable t, Object valor, boolean selecionado,
+                    boolean foco, int linha, int coluna) {
+                Component c = super.getTableCellRendererComponent(t, valor, selecionado, foco, linha, coluna);
+                if (!selecionado) c.setBackground(linha % 2 == 0 ? Color.WHITE : ZEBRA);
+                return c;
+            }
+        });
+    }
+
+    private static void deixarCabecalhoEmNegrito(JTable tabela) {
+        Font fonte = tabela.getTableHeader().getFont();
+        tabela.getTableHeader().setFont(fonte.deriveFont(Font.BOLD));
     }
 
     private void carregarInterfaces() {
@@ -121,7 +252,7 @@ public final class JanelaPrincipal extends JFrame {
         detector = DetectorDeAmeacas.padrao(new Mascara(
                 ip -> masker.maskIp(ip, mostrarSensivel),
                 mac -> masker.maskMac(mac, mostrarSensivel)));
-        detector.aoDetectar(alerta -> SwingUtilities.invokeLater(() -> modeloAlertas.adicionar(alerta)));
+        detector.aoDetectar(this::registrarAlerta);
 
         try {
             servico.iniciar(item.nif, campoFiltro.getText(),
@@ -133,6 +264,8 @@ public final class JanelaPrincipal extends JFrame {
             botaoIniciar.setEnabled(false);
             botaoParar.setEnabled(true);
             comboInterfaces.setEnabled(false);
+            bolinhaStatus.setForeground(VERDE);
+            textoStatusCaptura.setText("Capturando...");
             status.setText("Capturando em " + item + " ...");
         } catch (Exception e) {
             JOptionPane.showMessageDialog(this,
@@ -142,13 +275,21 @@ public final class JanelaPrincipal extends JFrame {
         }
     }
 
+    private void registrarAlerta(Alerta alerta) {
+        SwingUtilities.invokeLater(() -> {
+            modeloAlertas.adicionar(alerta);
+            contagemAlertas.merge(alerta.severidade(), 1, Integer::sum);
+            atualizarResumo();
+        });
+    }
+
     private void processar(Packet pacote, boolean mostrarSensivel) {
         int numero = contador.incrementAndGet();
         String descricao = analyzer.describe(pacote, numero, mostrarSensivel);
         detector.processar(pacote);
         SwingUtilities.invokeLater(() -> {
             modeloPacotes.adicionar(numero, descricao);
-            status.setText("Pacotes: " + numero + "   |   " + detector.resumo());
+            atualizarResumo();
         });
     }
 
@@ -157,6 +298,8 @@ public final class JanelaPrincipal extends JFrame {
         botaoIniciar.setEnabled(true);
         botaoParar.setEnabled(false);
         comboInterfaces.setEnabled(true);
+        bolinhaStatus.setForeground(CINZA);
+        textoStatusCaptura.setText("Parado");
     }
 
     /** Embrulha a placa para mostrar um nome legível no combo. */
