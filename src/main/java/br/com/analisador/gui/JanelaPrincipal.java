@@ -2,6 +2,7 @@ package br.com.analisador.gui;
 
 import br.com.analisador.Npcap;
 import br.com.analisador.PacketAnalyzer;
+import br.com.analisador.PacketAnalyzer.LinhaPacote;
 import br.com.analisador.Placas;
 import br.com.analisador.SensitiveDataMasker;
 import br.com.analisador.detector.Alerta;
@@ -119,7 +120,7 @@ public final class JanelaPrincipal extends JFrame {
         topo.add(painelResumo, BorderLayout.EAST);
 
         JTable tabelaPacotes = new JTable(modeloPacotes);
-        tabelaPacotes.getColumnModel().getColumn(0).setMaxWidth(60);
+        ajustarLargurasPacotes(tabelaPacotes);
         aplicarZebra(tabelaPacotes);
         deixarCabecalhoEmNegrito(tabelaPacotes);
 
@@ -221,6 +222,18 @@ public final class JanelaPrincipal extends JFrame {
         });
     }
 
+    /** Nº e portas ficam estreitas; Origem/Destino, mais largas, concentram o espaço disponível. */
+    private static void ajustarLargurasPacotes(JTable tabela) {
+        var colunas = tabela.getColumnModel();
+        colunas.getColumn(0).setMaxWidth(50);   // Nº
+        colunas.getColumn(1).setMaxWidth(90);   // Protocolo
+        colunas.getColumn(2).setPreferredWidth(220); // Origem
+        colunas.getColumn(3).setPreferredWidth(220); // Destino
+        colunas.getColumn(4).setMaxWidth(100);  // Porta origem
+        colunas.getColumn(5).setMaxWidth(100);  // Porta destino
+        colunas.getColumn(6).setMaxWidth(90);   // Tamanho
+    }
+
     private static void deixarCabecalhoEmNegrito(JTable tabela) {
         Font fonte = tabela.getTableHeader().getFont();
         tabela.getTableHeader().setFont(fonte.deriveFont(Font.BOLD));
@@ -285,10 +298,10 @@ public final class JanelaPrincipal extends JFrame {
 
     private void processar(Packet pacote, boolean mostrarSensivel) {
         int numero = contador.incrementAndGet();
-        String descricao = analyzer.describe(pacote, numero, mostrarSensivel);
+        LinhaPacote linha = analyzer.analisar(pacote, numero, mostrarSensivel);
         detector.processar(pacote);
         SwingUtilities.invokeLater(() -> {
-            modeloPacotes.adicionar(numero, descricao);
+            modeloPacotes.adicionar(linha);
             atualizarResumo();
         });
     }

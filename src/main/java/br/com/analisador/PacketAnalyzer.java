@@ -67,6 +67,56 @@ public final class PacketAnalyzer {
                 ipPacote.getHeader().getProtocol().name(), origem, destino, tamanho);
     }
 
+    /**
+     * Linha de pacote com os campos já separados, para a tabela da interface gráfica.
+     * "portaOrigem"/"portaDestino" ficam vazias quando o protocolo não tem porta (ex.: ARP, ICMP).
+     */
+    public record LinhaPacote(int numero, String protocolo, String origem, String destino,
+                               String portaOrigem, String portaDestino, int tamanho) {
+    }
+
+    /** Extrai os campos de um pacote em separado, respeitando o mesmo mascaramento do describe(). */
+    public LinhaPacote analisar(Packet pacote, int numero, boolean mostrarSensivel) {
+        int tamanho = pacote.length();
+
+        ArpPacket arp = pacote.get(ArpPacket.class);
+        if (arp != null) {
+            ArpPacket.ArpHeader h = arp.getHeader();
+            String origem = ip(h.getSrcProtocolAddr().getHostAddress(), mostrarSensivel)
+                    + " (" + masker.maskMac(h.getSrcHardwareAddr().toString(), mostrarSensivel) + ")";
+            String destino = ip(h.getDstProtocolAddr().getHostAddress(), mostrarSensivel);
+            return new LinhaPacote(numero, "ARP", origem, destino, "", "", tamanho);
+        }
+
+        IpPacket ipPacote = pacote.get(IpPacket.class);
+        if (ipPacote == null) {
+            return new LinhaPacote(numero, "Outro protocolo", "", "", "", "", tamanho);
+        }
+        String origem = ip(ipPacote.getHeader().getSrcAddr().getHostAddress(), mostrarSensivel);
+        String destino = ip(ipPacote.getHeader().getDstAddr().getHostAddress(), mostrarSensivel);
+
+        TcpPacket tcp = pacote.get(TcpPacket.class);
+        if (tcp != null) {
+            TcpPacket.TcpHeader h = tcp.getHeader();
+            return new LinhaPacote(numero, "TCP", origem, destino,
+                    String.valueOf(h.getSrcPort().valueAsInt()), String.valueOf(h.getDstPort().valueAsInt()), tamanho);
+        }
+
+        UdpPacket udp = pacote.get(UdpPacket.class);
+        if (udp != null) {
+            UdpPacket.UdpHeader h = udp.getHeader();
+            return new LinhaPacote(numero, "UDP", origem, destino,
+                    String.valueOf(h.getSrcPort().valueAsInt()), String.valueOf(h.getDstPort().valueAsInt()), tamanho);
+        }
+
+        IcmpV4CommonPacket icmp = pacote.get(IcmpV4CommonPacket.class);
+        if (icmp != null) {
+            return new LinhaPacote(numero, "ICMP", origem, destino, "", "", tamanho);
+        }
+
+        return new LinhaPacote(numero, ipPacote.getHeader().getProtocol().name(), origem, destino, "", "", tamanho);
+    }
+
     private String ip(String ip, boolean mostrarSensivel) {
         return masker.maskIp(ip, mostrarSensivel);
     }
