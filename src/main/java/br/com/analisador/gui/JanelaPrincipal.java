@@ -10,7 +10,10 @@ import br.com.analisador.detector.DetectorDeAmeacas;
 import br.com.analisador.detector.Mascara;
 import br.com.analisador.detector.Severidade;
 import br.com.analisador.ia.ClienteClaude;
+import br.com.analisador.ia.ClienteOllama;
 import br.com.analisador.ia.ExplicadorDeAlertas;
+import br.com.analisador.ia.ModeloDeLinguagem;
+import br.com.analisador.ia.ProvedorIA;
 
 import org.pcap4j.core.PcapNetworkInterface;
 import org.pcap4j.packet.Packet;
@@ -75,6 +78,8 @@ public final class JanelaPrincipal extends JFrame {
     private final AtomicInteger contador = new AtomicInteger();
     private DetectorDeAmeacas detector;
 
+    /** Escolhido por ANALISADOR_IA ao abrir o programa. */
+    private final ProvedorIA provedorIA = ProvedorIA.doAmbiente();
     /** Criado na primeira consulta à IA; guarda as respostas já recebidas. */
     private ExplicadorDeAlertas explicador;
     private boolean envioParaIAConfirmado = false;
@@ -155,7 +160,8 @@ public final class JanelaPrincipal extends JFrame {
         });
         JPanel barraAlertas = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 4));
         barraAlertas.add(botaoExplicarIA);
-        barraAlertas.add(new JLabel("Selecione um alerta (ou dê duplo clique) para a IA explicar."));
+        barraAlertas.add(new JLabel("Selecione um alerta (ou dê duplo clique) para a IA explicar.   IA: "
+                + provedorIA.nomeExibicao()));
 
         JPanel painelAlertas = new JPanel(new BorderLayout());
         painelAlertas.setBorder(BorderFactory.createTitledBorder("Alertas de segurança"));
@@ -317,6 +323,13 @@ public final class JanelaPrincipal extends JFrame {
 
     /** Pede à IA a explicação do alerta selecionado, sem travar a janela. */
     private void explicarComIA(JTable tabelaAlertas) {
+        // a configuração é conferida antes da seleção: assim o botão já ensina a configurar mesmo sem alertas
+        if (explicador == null) {
+            Optional<ModeloDeLinguagem> modelo = criarModeloDeLinguagem();
+            if (modelo.isEmpty()) return;
+            explicador = new ExplicadorDeAlertas(modelo.get());
+        }
+
         int linha = tabelaAlertas.getSelectedRow();
         if (linha < 0) {
             status.setText("Selecione um alerta na tabela para a IA explicar.");
@@ -324,21 +337,8 @@ public final class JanelaPrincipal extends JFrame {
         }
         Alerta alerta = modeloAlertas.get(tabelaAlertas.convertRowIndexToModel(linha));
 
-        if (explicador == null) {
-            Optional<ClienteClaude> cliente = ClienteClaude.doAmbiente();
-            if (cliente.isEmpty()) {
-                JOptionPane.showMessageDialog(this,
-                        "Para usar a IA, defina a variável de ambiente " + ClienteClaude.VARIAVEL_CHAVE
-                                + " com a sua chave da API da Anthropic\n(console.anthropic.com) e abra o programa de novo.\n\n"
-                                + "No Windows (cmd):  setx " + ClienteClaude.VARIAVEL_CHAVE + " \"sua-chave\"\n\n"
-                                + "A chave nunca é gravada no programa.",
-                        "IA não configurada", JOptionPane.INFORMATION_MESSAGE);
-                return;
-            }
-            explicador = new ExplicadorDeAlertas(cliente.get());
-        }
-
-        if (!envioParaIAConfirmado) {
+        // no modo local nada sai do computador, então não há envio a confirmar
+        if (provedorIA.enviaParaInternet() && !envioParaIAConfirmado) {
             int resposta = JOptionPane.showConfirmDialog(this,
                     "O texto do alerta será enviado à API da Anthropic para gerar a explicação.\n"
                             + "IPs e MACs são mascarados antes do envio, mesmo com \"Mostrar dados sensíveis\" ligado.\n\n"
@@ -348,7 +348,7 @@ public final class JanelaPrincipal extends JFrame {
             envioParaIAConfirmado = true;
         }
 
-        DialogoExplicacaoIA dialogo = new DialogoExplicacaoIA(this, alerta);
+        DialogoExplicacaoIA dialogo = new DialogoExplicacaoIA(this, alerta, provedorIA);
         dialogo.setVisible(true);
         ExplicadorDeAlertas usado = explicador;
         new SwingWorker<String, Void>() {
@@ -366,6 +366,27 @@ public final class JanelaPrincipal extends JFrame {
                 }
             }
         }.execute();
+    }
+
+    /** Cria o cliente do provedor escolhido em ANALISADOR_IA; vazio (após explicar o motivo) se faltar configuração. */
+    private Optional<ModeloDeLinguagem> criarModeloDeLinguagem() {
+        if (provedorIA == ProvedorIA.LOCAL) {
+            // sem chave nem internet; se o Ollama estiver parado, a própria janela de explicação ensina a iniciá-lo
+            return Optional.of(ClienteOllama.doAmbiente());
+        }
+        Optional<ClienteClaude> cliente = ClienteClaude.doAmbiente();
+        if (cliente.isEmpty()) {
+            JOptionPane.showMessageDialog(this,
+                    "Para usar a IA, defina a variável de ambiente " + ClienteClaude.VARIAVEL_CHAVE
+                            + " com a sua chave da API da Anthropic\n(console.anthropic.com) e abra o programa de novo.\n\n"
+                            + "No Windows (cmd):  setx " + ClienteClaude.VARIAVEL_CHAVE + " \"sua-chave\"\n\n"
+                            + "A chave nunca é gravada no programa.\n\n"
+                            + "Prefere uma IA 100% offline, sem chave? Instale o Ollama (ollama.com) e use:\n"
+                            + "setx " + ProvedorIA.VARIAVEL + " local",
+                    "IA não configurada", JOptionPane.INFORMATION_MESSAGE);
+            return Optional.empty();
+        }
+        return Optional.of(cliente.get());
     }
 
     private void registrarAlerta(Alerta alerta) {

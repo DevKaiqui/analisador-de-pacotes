@@ -1,6 +1,7 @@
 package br.com.analisador.gui;
 
 import br.com.analisador.detector.Alerta;
+import br.com.analisador.ia.ProvedorIA;
 
 import javax.swing.*;
 import java.awt.*;
@@ -9,9 +10,11 @@ import java.awt.*;
 public final class DialogoExplicacaoIA extends JDialog {
 
     private final JTextArea texto = new JTextArea();
+    private final ProvedorIA provedor;
 
-    public DialogoExplicacaoIA(Window pai, Alerta alerta) {
+    public DialogoExplicacaoIA(Window pai, Alerta alerta, ProvedorIA provedor) {
         super(pai, "Explicação da IA — " + alerta.tipo(), ModalityType.MODELESS);
+        this.provedor = provedor;
 
         JLabel cabecalho = new JLabel("<html><b>" + escapar(alerta.severidade().name()) + "</b> · "
                 + escapar(alerta.descricao()) + "</html>");
@@ -23,7 +26,8 @@ public final class DialogoExplicacaoIA extends JDialog {
         texto.setMargin(new Insets(8, 10, 8, 10));
         texto.setFont(texto.getFont().deriveFont(14f));
 
-        JLabel aviso = new JLabel("Gerado por IA a partir do alerta (IPs/MACs mascarados). Confira antes de agir.");
+        JLabel aviso = new JLabel("Respondido por: " + provedor.nomeExibicao()
+                + "  ·  Gerado por IA a partir do alerta (IPs/MACs mascarados). Confira antes de agir.");
         aviso.setFont(aviso.getFont().deriveFont(Font.ITALIC, 11f));
         aviso.setBorder(BorderFactory.createEmptyBorder(4, 10, 8, 10));
 
@@ -31,13 +35,15 @@ public final class DialogoExplicacaoIA extends JDialog {
         add(cabecalho, BorderLayout.NORTH);
         add(new JScrollPane(texto), BorderLayout.CENTER);
         add(aviso, BorderLayout.SOUTH);
-        setSize(560, 420);
+        setSize(640, 420);
         setLocationRelativeTo(pai);
         mostrarCarregando();
     }
 
     public void mostrarCarregando() {
-        texto.setText("Consultando a IA...");
+        texto.setText(provedor == ProvedorIA.LOCAL
+                ? "Consultando a IA local... (no computador, sem internet; pode levar alguns segundos)"
+                : "Consultando a IA...");
     }
 
     public void mostrarExplicacao(String explicacao) {
