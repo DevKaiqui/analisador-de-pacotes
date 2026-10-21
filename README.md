@@ -1,5 +1,9 @@
 # Analisador de Pacotes
 
+![Janela do Analisador de Pacotes: cartões de métricas, gráfico de pacotes por segundo, tabelas de pacotes e alertas e painel de detalhes com a explicação da IA](docs/tela.png)
+
+<sub>Print com dados fictícios (IPs de exemplo, já mascarados).</sub>
+
 Aplicação Java com **interface gráfica (Swing)** — e também utilizável via terminal — que captura tráfego de rede (ou lê um arquivo `.pcap`) e alerta em tempo real sobre ameaças:
 
 | Regra | Severidade | O que detecta |
@@ -33,19 +37,22 @@ mvn test
 
 ## Interface gráfica
 
-Clique duas vezes em `target/analisador-de-pacotes-1.0.0.jar` (ou `java -jar target/analisador-de-pacotes-1.0.0.jar`) para abrir a janela principal. Nela é possível:
+Clique duas vezes em `target/analisador-de-pacotes-1.0.0.jar` (ou `java -jar target/analisador-de-pacotes-1.0.0.jar`) para abrir a janela principal. No Windows, o `Abrir Analisador.bat` já abre como administrador com o JDK 17. O visual é um painel escuro no estilo das ferramentas de SOC ([FlatLaf](https://www.formdev.com/flatlaf/), destaque ciano):
 
-- **Placa**: escolher a interface de rede (a placa física já vem selecionada por padrão).
-- **Filtro**: digitar um filtro BPF opcional, ex. `tcp or arp or udp port 53`.
-- **Mostrar dados sensíveis**: desmarcado por padrão (IPs/MACs mascarados); marque para ver os valores reais.
-- **Iniciar / Parar / Limpar**: controlam a captura e permitem limpar as tabelas.
-- Tabela **Pacotes**: lista cada pacote capturado, numerado e descrito.
-- Tabela **Alertas de segurança**: mostra os alertas das 4 regras acima, com a severidade colorida por linha.
-- Barra de status: exibe o total de pacotes e o resumo de alertas em tempo real.
+- **Cabeçalho**: estado da captura (● Parado / Capturando), **Mostrar dados sensíveis** (desmarcado por padrão: IPs/MACs mascarados) e **Limpar** (zera tabelas, contadores e gráfico).
+- **Barra de captura**: escolha da **placa** de rede (a física já vem selecionada), **Iniciar** / **Parar**, **filtro BPF** opcional (ex.: `tcp or arp or udp port 53`) e filtros rápidos.
+- **Cartões de métricas**: total de pacotes e alertas por severidade (críticos, altos, médios e baixos), com números grandes.
+- **Pacotes por segundo**: gráfico em tempo real do último minuto.
+- Tabela **Pacotes**: cada pacote capturado, numerado e separado em colunas (protocolo, origem, destino, portas, tamanho), mais recentes no topo.
+- Tabela **Alertas de segurança**: alertas das 4 regras acima, com um **selo colorido** de severidade (crítica e alta em vermelho, média em âmbar, baixa em ciano).
+- **Painel de detalhes** (à direita dos alertas): ao selecionar um alerta, mostra os dados completos e a **explicação da IA** ali mesmo.
+- A janela redimensiona bem (mínimo de 1080x680); as divisórias entre as áreas podem ser arrastadas.
+
+Tudo que vem da rede é exibido como texto puro: as tabelas e o painel de detalhes não interpretam HTML.
 
 ## IA integrada: "Explicar com IA"
 
-Na tabela **Alertas de segurança**, selecione um alerta e clique em **Explicar com IA** (ou dê duplo clique nele). Uma IA (API do Claude ou, se preferir, uma [IA local offline](#ia-local-offline)) explica em português, em quatro partes: **o que significa**, **por que importa**, **pode ser falso positivo?** e **o que fazer**. A chamada roda em segundo plano, então a captura não trava, e respostas já recebidas ficam em cache (perguntar de novo sobre o mesmo alerta não gasta a API).
+Na tabela **Alertas de segurança**, selecione um alerta e clique em **Explicar com IA** no painel de detalhes (ou dê duplo clique no alerta). Uma IA (API do Claude ou, se preferir, uma [IA local offline](#ia-local-offline)) explica em português, em quatro partes: **o que significa**, **por que importa**, **pode ser falso positivo?** e **o que fazer**. A chamada roda em segundo plano, então a captura não trava, e respostas já recebidas ficam em cache (selecionar de novo um alerta já explicado mostra a resposta na hora, sem gastar a API).
 
 ### Configuração
 
@@ -87,7 +94,7 @@ Quer explicações sem chave, sem custo e sem que nada saia do computador? Use o
 | `ANALISADOR_IA` | `local` usa o Ollama; qualquer outro valor (ou ausente) usa o Claude | Claude |
 | `OLLAMA_MODELO` | qualquer modelo baixado com `ollama pull` (ex.: `llama3.2:1b`, `qwen2.5:3b`) | `llama3.2` |
 
-O programa fala só com `http://localhost:11434`. Se o Ollama não estiver rodando ou o modelo não estiver baixado, a janela de explicação diz exatamente o que fazer. O rodapé da explicação mostra quem respondeu: **Claude (API)** ou **IA local (Ollama)**. As regras de segurança acima valem igual para os dois (anonimização de IP/MAC, alerta tratado como dado, resposta em texto puro).
+O programa fala só com `http://localhost:11434`. Se o Ollama não estiver rodando ou o modelo não estiver baixado, o painel de detalhes diz exatamente o que fazer. O rodapé da explicação mostra quem respondeu: **Claude (API)** ou **IA local (Ollama)**. As regras de segurança acima valem igual para os dois (anonimização de IP/MAC, alerta tratado como dado, resposta em texto puro).
 
 | | Claude (API) | IA local (Ollama) |
 |---|---|---|
