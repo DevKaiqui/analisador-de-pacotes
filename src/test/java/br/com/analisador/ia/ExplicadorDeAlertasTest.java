@@ -63,4 +63,19 @@ class ExplicadorDeAlertasTest {
         assertEquals(1, chamadas.get());
         assertEquals(ExplicadorDeAlertas.INSTRUCOES, instrucoesVistas[0]);
     }
+
+    @Test
+    void explicacaoGuardadaSoExisteDepoisDePerguntarENaoChamaAIa() throws Exception {
+        AtomicInteger chamadas = new AtomicInteger();
+        ExplicadorDeAlertas explicador = new ExplicadorDeAlertas((i, p) -> {
+            chamadas.incrementAndGet();
+            return "explicação";
+        });
+        Alerta a = alerta("1.2.3.4", "teste");
+
+        assertTrue(explicador.explicacaoGuardada(a).isEmpty());
+        explicador.explicar(a);
+        assertEquals("explicação", explicador.explicacaoGuardada(a).orElseThrow());
+        assertEquals(1, chamadas.get());
+    }
 }

@@ -78,6 +78,7 @@ public final class JanelaPrincipal extends JFrame {
     /** Criado na primeira consulta à IA; guarda as respostas já recebidas. */
     private ExplicadorDeAlertas explicador;
     private boolean envioParaIAConfirmado = false;
+    private final PainelDetalhesAlerta detalhes = new PainelDetalhesAlerta(provedorIA, botaoExplicarIA);
 
     public JanelaPrincipal() {
         super("Analisador de Pacotes");
@@ -158,15 +159,17 @@ public final class JanelaPrincipal extends JFrame {
                 if (e.getClickCount() == 2) explicarComIA(tabelaAlertas);
             }
         });
-        JPanel barraAlertas = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 4));
-        barraAlertas.add(botaoExplicarIA);
-        barraAlertas.add(new JLabel("Selecione um alerta (ou dê duplo clique) para a IA explicar.   IA: "
-                + provedorIA.nomeExibicao()));
+        tabelaAlertas.getSelectionModel().addListSelectionListener(e -> {
+            if (!e.getValueIsAdjusting()) mostrarDetalhes(tabelaAlertas);
+        });
+
+        JSplitPane alertasEDetalhes = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, rolagemAlertas, detalhes);
+        alertasEDetalhes.setResizeWeight(0.62);
+        alertasEDetalhes.setBorder(null);
 
         JPanel painelAlertas = new JPanel(new BorderLayout());
         painelAlertas.setBorder(BorderFactory.createTitledBorder("Alertas de segurança"));
-        painelAlertas.add(rolagemAlertas, BorderLayout.CENTER);
-        painelAlertas.add(barraAlertas, BorderLayout.SOUTH);
+        painelAlertas.add(alertasEDetalhes, BorderLayout.CENTER);
 
         JSplitPane divisao = new JSplitPane(JSplitPane.VERTICAL_SPLIT, painelPacotes, painelAlertas);
         divisao.setResizeWeight(0.6);
@@ -191,6 +194,7 @@ public final class JanelaPrincipal extends JFrame {
         botaoLimpar.addActionListener(e -> {
             modeloPacotes.limpar();
             modeloAlertas.limpar();
+            detalhes.limpar();
             contador.set(0);
             grafico.limpar();
             for (Severidade s : Severidade.values()) contagemAlertas.put(s, 0);
@@ -299,6 +303,20 @@ public final class JanelaPrincipal extends JFrame {
         }
     }
 
+    /** Atualiza o painel da direita com o alerta selecionado (e a explicação, se já foi pedida antes). */
+    private void mostrarDetalhes(JTable tabelaAlertas) {
+        int linha = tabelaAlertas.getSelectedRow();
+        if (linha < 0) {
+            detalhes.limpar();
+            return;
+        }
+        Alerta alerta = modeloAlertas.get(tabelaAlertas.convertRowIndexToModel(linha));
+        // alertas novos entram no topo e deslocam a seleção; se o alerta é o mesmo, nada muda
+        if (alerta == detalhes.alertaAtual()) return;
+        detalhes.mostrar(alerta);
+        if (explicador != null) explicador.explicacaoGuardada(alerta).ifPresent(detalhes::mostrarExplicacao);
+    }
+
     /** Pede à IA a explicação do alerta selecionado, sem travar a janela. */
     private void explicarComIA(JTable tabelaAlertas) {
         // a configuração é conferida antes da seleção: assim o botão já ensina a configurar mesmo sem alertas
@@ -326,21 +344,23 @@ public final class JanelaPrincipal extends JFrame {
             envioParaIAConfirmado = true;
         }
 
-        DialogoExplicacaoIA dialogo = new DialogoExplicacaoIA(this, alerta, provedorIA);
-        dialogo.setVisible(true);
+        if (detalhes.alertaAtual() != alerta) detalhes.mostrar(alerta);
+        detalhes.mostrarCarregando();
         ExplicadorDeAlertas usado = explicador;
         new SwingWorker<String, Void>() {
             @Override protected String doInBackground() throws Exception {
                 return usado.explicar(alerta);
             }
             @Override protected void done() {
+                // o usuário pode ter selecionado outro alerta enquanto a IA respondia
+                if (detalhes.alertaAtual() != alerta) return;
                 try {
-                    dialogo.mostrarExplicacao(get());
+                    detalhes.mostrarExplicacao(get());
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                 } catch (ExecutionException e) {
                     Throwable causa = e.getCause() != null ? e.getCause() : e;
-                    dialogo.mostrarErro(causa.getMessage());
+                    detalhes.mostrarErro(causa.getMessage());
                 }
             }
         }.execute();

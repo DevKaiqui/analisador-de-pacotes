@@ -4,6 +4,7 @@ import br.com.analisador.detector.Alerta;
 
 import java.io.IOException;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -47,6 +48,11 @@ public final class ExplicadorDeAlertas {
         String resposta = modelo.perguntar(INSTRUCOES, montarPergunta(alerta)).strip();
         cache.put(alerta, resposta);
         return resposta;
+    }
+
+    /** Explicação já recebida para o alerta, sem chamar a IA (para reexibir ao selecionar de novo). */
+    public Optional<String> explicacaoGuardada(Alerta alerta) {
+        return Optional.ofNullable(cache.get(alerta));
     }
 
     /** Monta a pergunta já anonimizada (visível ao pacote para ser testada sem rede). */
