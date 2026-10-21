@@ -70,6 +70,7 @@ public final class JanelaPrincipal extends JFrame {
     private final SensitiveDataMasker masker = new SensitiveDataMasker();
     private final PacketAnalyzer analyzer = new PacketAnalyzer(masker);
     private final AtomicInteger contador = new AtomicInteger();
+    private final GraficoPacotesPorSegundo grafico = new GraficoPacotesPorSegundo(contador::get);
     private DetectorDeAmeacas detector;
 
     /** Escolhido por ANALISADOR_IA ao abrir o programa. */
@@ -129,6 +130,7 @@ public final class JanelaPrincipal extends JFrame {
         JPanel topo = new JPanel(new BorderLayout(8, 8));
         topo.add(controles, BorderLayout.NORTH);
         topo.add(montarCartoes(), BorderLayout.CENTER);
+        topo.add(grafico, BorderLayout.EAST);
 
         JTable tabelaPacotes = new JTable(modeloPacotes);
         ajustarLargurasPacotes(tabelaPacotes);
@@ -190,6 +192,7 @@ public final class JanelaPrincipal extends JFrame {
             modeloPacotes.limpar();
             modeloAlertas.limpar();
             contador.set(0);
+            grafico.limpar();
             for (Severidade s : Severidade.values()) contagemAlertas.put(s, 0);
             atualizarResumo();
         });
