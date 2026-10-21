@@ -56,7 +56,7 @@ setx ANTHROPIC_API_KEY "sua-chave"      :: Windows (reabra o programa depois)
 export ANTHROPIC_API_KEY="sua-chave"    # Linux/macOS
 ```
 
-Opcional: `ANALISADOR_MODELO` troca o modelo (padrão: `claude-haiku-5-5`, rápido e barato). A chave **nunca** fica no código nem em arquivo do projeto; sem ela, o botão apenas mostra como configurar.
+Opcional: `ANALISADOR_MODELO` troca o modelo (padrão: `claude-haiku-4-5`, rápido e barato). A chave **nunca** fica no código nem em arquivo do projeto; sem ela, o botão apenas mostra como configurar.
 
 ### Privacidade e segurança
 

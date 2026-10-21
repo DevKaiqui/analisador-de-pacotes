@@ -24,7 +24,7 @@ public final class ClienteClaude implements ModeloDeLinguagem {
 
     public static final String VARIAVEL_CHAVE = "ANTHROPIC_API_KEY";
     public static final String VARIAVEL_MODELO = "ANALISADOR_MODELO";
-    public static final String MODELO_PADRAO = "claude-haiku-5-5";
+    public static final String MODELO_PADRAO = "claude-haiku-4-5";
 
     private static final URI ENDPOINT = URI.create("https://api.anthropic.com/v1/messages");
     private static final String VERSAO_API = "2023-06-01";
