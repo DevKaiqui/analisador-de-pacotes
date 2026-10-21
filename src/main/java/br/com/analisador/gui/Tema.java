@@ -4,6 +4,7 @@ import br.com.analisador.detector.Severidade;
 import com.formdev.flatlaf.FlatClientProperties;
 import com.formdev.flatlaf.FlatDarkLaf;
 import com.formdev.flatlaf.FlatLaf;
+import com.formdev.flatlaf.extras.FlatSVGIcon;
 import com.formdev.flatlaf.util.ColorFunctions;
 
 import javax.swing.*;
@@ -76,5 +77,22 @@ public final class Tema {
         botao.putClientProperty(FlatClientProperties.STYLE,
                 "background:" + corDeFundo + "; foreground:" + corDoTexto
                         + "; borderWidth:0; focusWidth:0; innerFocusWidth:0; font:bold");
+    }
+
+    /**
+     * Ícone SVG de src/main/resources/icones, pintado com a cor da chave do tema informada
+     * (lida na hora de desenhar, então acompanha o tema). O FlatLaf gera sozinho a versão desabilitada.
+     */
+    public static FlatSVGIcon icone(String nome, String chaveDaCor) {
+        FlatSVGIcon icone = new FlatSVGIcon("icones/" + nome + ".svg", 16, 16);
+        icone.setColorFilter(new FlatSVGIcon.ColorFilter(c -> UIManager.getColor(chaveDaCor)));
+        return icone;
+    }
+
+    /** Mesmo que {@link #icone(String, String)}, com uma cor fixa (texto de botões coloridos). */
+    public static FlatSVGIcon icone(String nome, Color cor) {
+        FlatSVGIcon icone = new FlatSVGIcon("icones/" + nome + ".svg", 16, 16);
+        icone.setColorFilter(new FlatSVGIcon.ColorFilter(c -> cor));
+        return icone;
     }
 }

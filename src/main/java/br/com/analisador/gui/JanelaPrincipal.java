@@ -113,7 +113,10 @@ public final class JanelaPrincipal extends JFrame {
         painelExibicao.add(textoStatusCaptura);
 
         Tema.botaoPrimario(botaoIniciar, "$Actions.Green", "#ffffff");
+        botaoIniciar.setIcon(Tema.icone("iniciar", Color.WHITE));
         Tema.botaoPrimario(botaoParar, "$Actions.Red", "#ffffff");
+        botaoParar.setIcon(Tema.icone("parar", Color.WHITE));
+        botaoLimpar.setIcon(Tema.icone("limpar", "Button.foreground"));
 
         JPanel controles = new JPanel();
         controles.setLayout(new BoxLayout(controles, BoxLayout.Y_AXIS));
@@ -145,6 +148,7 @@ public final class JanelaPrincipal extends JFrame {
         JScrollPane rolagemAlertas = new JScrollPane(tabelaAlertas);
 
         Tema.botaoPrimario(botaoExplicarIA, Tema.DESTAQUE, "#0b1a1e");
+        botaoExplicarIA.setIcon(Tema.icone("ia", new Color(0x0B1A1E)));
         botaoExplicarIA.setToolTipText("Pede à IA uma explicação em português do alerta selecionado (ou dê duplo clique no alerta)");
         botaoExplicarIA.addActionListener(e -> explicarComIA(tabelaAlertas));
         tabelaAlertas.addMouseListener(new MouseAdapter() {
