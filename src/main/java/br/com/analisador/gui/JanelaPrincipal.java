@@ -20,7 +20,6 @@ import org.pcap4j.packet.Packet;
 
 import javax.swing.*;
 import javax.swing.border.TitledBorder;
-import javax.swing.table.DefaultTableCellRenderer;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
@@ -37,11 +36,6 @@ import java.util.concurrent.atomic.AtomicInteger;
  * e acompanhar pacotes e alertas de segurança, tudo sem usar o terminal.
  */
 public final class JanelaPrincipal extends JFrame {
-
-    private static final Color VERDE = new Color(0x2E, 0x7D, 0x32);
-    private static final Color VERMELHO = new Color(0xC6, 0x28, 0x28);
-    private static final Color CINZA = new Color(0x9E, 0x9E, 0x9E);
-    private static final Color ZEBRA = new Color(0xF2, 0xF4, 0xF7);
 
     /** Filtro BPF pronto para o combo de filtros rápidos. */
     private record FiltroRapido(String nome, String filtro) {
@@ -114,12 +108,12 @@ public final class JanelaPrincipal extends JFrame {
         painelExibicao.setBorder(tituloSecao("Exibição"));
         painelExibicao.add(checkSensivel);
         painelExibicao.add(botaoLimpar);
-        bolinhaStatus.setForeground(CINZA);
+        bolinhaStatus.setForeground(Tema.corInativo());
         painelExibicao.add(bolinhaStatus);
         painelExibicao.add(textoStatusCaptura);
 
-        estilizarBotaoPrimario(botaoIniciar, VERDE);
-        estilizarBotaoPrimario(botaoParar, VERMELHO);
+        Tema.botaoPrimario(botaoIniciar, "$Actions.Green", "#ffffff");
+        Tema.botaoPrimario(botaoParar, "$Actions.Red", "#ffffff");
 
         JPanel controles = new JPanel();
         controles.setLayout(new BoxLayout(controles, BoxLayout.Y_AXIS));
@@ -137,7 +131,6 @@ public final class JanelaPrincipal extends JFrame {
 
         JTable tabelaPacotes = new JTable(modeloPacotes);
         ajustarLargurasPacotes(tabelaPacotes);
-        aplicarZebra(tabelaPacotes);
         deixarCabecalhoEmNegrito(tabelaPacotes);
 
         JTable tabelaAlertas = new JTable(modeloAlertas);
@@ -150,7 +143,7 @@ public final class JanelaPrincipal extends JFrame {
         painelPacotes.setBorder(BorderFactory.createTitledBorder("Pacotes"));
         JScrollPane rolagemAlertas = new JScrollPane(tabelaAlertas);
 
-        estilizarBotaoPrimario(botaoExplicarIA, new Color(0x4A, 0x3A, 0xB8));
+        Tema.botaoPrimario(botaoExplicarIA, Tema.DESTAQUE, "#0b1a1e");
         botaoExplicarIA.setToolTipText("Pede à IA uma explicação em português do alerta selecionado (ou dê duplo clique no alerta)");
         botaoExplicarIA.addActionListener(e -> explicarComIA(tabelaAlertas));
         tabelaAlertas.addMouseListener(new MouseAdapter() {
@@ -205,20 +198,11 @@ public final class JanelaPrincipal extends JFrame {
         for (Severidade s : Severidade.values()) {
             JLabel lbl = new JLabel(s.name() + ": 0");
             lbl.setFont(lbl.getFont().deriveFont(Font.BOLD));
-            lbl.setForeground(corResumo(s));
+            lbl.setForeground(Tema.corSeveridade(s));
             lblAlertasPorSeveridade.put(s, lbl);
             painel.add(lbl);
         }
         return painel;
-    }
-
-    private static Color corResumo(Severidade s) {
-        return switch (s) {
-            case CRITICA -> new Color(0xB0, 0x00, 0x20);
-            case ALTA -> new Color(0xC6, 0x28, 0x28);
-            case MEDIA -> new Color(0x8A, 0x6D, 0x00);
-            case BAIXA -> new Color(0x0C, 0x5A, 0x6E);
-        };
     }
 
     private void atualizarResumo() {
@@ -232,27 +216,6 @@ public final class JanelaPrincipal extends JFrame {
         TitledBorder borda = BorderFactory.createTitledBorder(texto);
         borda.setTitleFont(borda.getTitleFont().deriveFont(Font.BOLD));
         return borda;
-    }
-
-    private static void estilizarBotaoPrimario(JButton botao, Color cor) {
-        botao.setBackground(cor);
-        botao.setForeground(Color.WHITE);
-        botao.setOpaque(true);
-        botao.setContentAreaFilled(true);
-        botao.setBorderPainted(false);
-        botao.setFocusPainted(false);
-    }
-
-    private static void aplicarZebra(JTable tabela) {
-        tabela.setDefaultRenderer(Object.class, new DefaultTableCellRenderer() {
-            @Override
-            public Component getTableCellRendererComponent(JTable t, Object valor, boolean selecionado,
-                    boolean foco, int linha, int coluna) {
-                Component c = super.getTableCellRendererComponent(t, valor, selecionado, foco, linha, coluna);
-                if (!selecionado) c.setBackground(linha % 2 == 0 ? Color.WHITE : ZEBRA);
-                return c;
-            }
-        });
     }
 
     /** Nº e portas ficam estreitas; Origem/Destino, mais largas, concentram o espaço disponível. */
@@ -310,7 +273,7 @@ public final class JanelaPrincipal extends JFrame {
             botaoIniciar.setEnabled(false);
             botaoParar.setEnabled(true);
             comboInterfaces.setEnabled(false);
-            bolinhaStatus.setForeground(VERDE);
+            bolinhaStatus.setForeground(Tema.corAtivo());
             textoStatusCaptura.setText("Capturando...");
             status.setText("Capturando em " + item + " ...");
         } catch (Exception e) {
@@ -412,7 +375,7 @@ public final class JanelaPrincipal extends JFrame {
         botaoIniciar.setEnabled(true);
         botaoParar.setEnabled(false);
         comboInterfaces.setEnabled(true);
-        bolinhaStatus.setForeground(CINZA);
+        bolinhaStatus.setForeground(Tema.corInativo());
         textoStatusCaptura.setText("Parado");
     }
 
