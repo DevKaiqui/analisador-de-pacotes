@@ -22,6 +22,7 @@ import com.formdev.flatlaf.FlatClientProperties;
 import net.miginfocom.swing.MigLayout;
 
 import javax.swing.*;
+import javax.swing.table.DefaultTableCellRenderer;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
@@ -110,6 +111,9 @@ public final class JanelaPrincipal extends JFrame {
         status.putClientProperty(FlatClientProperties.STYLE, "font: -1; foreground: $Label.disabledForeground");
 
         JTable tabelaPacotes = new JTable(modeloPacotes);
+        DefaultTableCellRenderer textoPuro = new DefaultTableCellRenderer();
+        textoPuro.putClientProperty("html.disable", Boolean.TRUE); // dados de pacotes nunca viram HTML
+        tabelaPacotes.setDefaultRenderer(Object.class, textoPuro);
         ajustarLargurasPacotes(tabelaPacotes);
         deixarCabecalhoEmNegrito(tabelaPacotes);
 

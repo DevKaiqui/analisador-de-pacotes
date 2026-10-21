@@ -15,6 +15,11 @@ public final class RenderizadorSeveridade extends DefaultTableCellRenderer {
 
     static final int COLUNA_SEVERIDADE = 1;
 
+    public RenderizadorSeveridade() {
+        // a descrição pode trazer dados da rede: nunca interpretar como HTML
+        putClientProperty("html.disable", Boolean.TRUE);
+    }
+
     @Override
     public Component getTableCellRendererComponent(JTable tabela, Object valor,
             boolean selecionado, boolean foco, int linha, int coluna) {
