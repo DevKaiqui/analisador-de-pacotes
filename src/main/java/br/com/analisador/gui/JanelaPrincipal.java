@@ -59,8 +59,8 @@ public final class JanelaPrincipal extends JFrame {
     private final JLabel textoStatusCaptura = new JLabel("Parado");
     private final JLabel status = new JLabel("Pronto.");
 
-    private final JLabel lblPacotes = new JLabel("Pacotes: 0");
-    private final Map<Severidade, JLabel> lblAlertasPorSeveridade = new EnumMap<>(Severidade.class);
+    private final CartaoMetrica cartaoPacotes = new CartaoMetrica("Pacotes capturados", UIManager.getColor("Component.accentColor"));
+    private final Map<Severidade, CartaoMetrica> cartoesPorSeveridade = new EnumMap<>(Severidade.class);
     private final Map<Severidade, Integer> contagemAlertas = new EnumMap<>(Severidade.class);
 
     private final ModeloPacotes modeloPacotes = new ModeloPacotes(5000);
@@ -123,11 +123,9 @@ public final class JanelaPrincipal extends JFrame {
         linha1.add(painelExibicao);
         controles.add(linha1);
 
-        JPanel painelResumo = montarPainelResumo();
-
-        JPanel topo = new JPanel(new BorderLayout(8, 4));
-        topo.add(controles, BorderLayout.CENTER);
-        topo.add(painelResumo, BorderLayout.EAST);
+        JPanel topo = new JPanel(new BorderLayout(8, 8));
+        topo.add(controles, BorderLayout.NORTH);
+        topo.add(montarCartoes(), BorderLayout.CENTER);
 
         JTable tabelaPacotes = new JTable(modeloPacotes);
         ajustarLargurasPacotes(tabelaPacotes);
@@ -190,25 +188,32 @@ public final class JanelaPrincipal extends JFrame {
         });
     }
 
-    private JPanel montarPainelResumo() {
-        JPanel painel = new JPanel(new GridLayout(0, 1, 2, 2));
-        painel.setBorder(tituloSecao("Resumo"));
-        lblPacotes.setFont(lblPacotes.getFont().deriveFont(Font.BOLD));
-        painel.add(lblPacotes);
-        for (Severidade s : Severidade.values()) {
-            JLabel lbl = new JLabel(s.name() + ": 0");
-            lbl.setFont(lbl.getFont().deriveFont(Font.BOLD));
-            lbl.setForeground(Tema.corSeveridade(s));
-            lblAlertasPorSeveridade.put(s, lbl);
-            painel.add(lbl);
+    /** Cartões do topo: total de pacotes e alertas por severidade, da mais grave para a mais leve. */
+    private JPanel montarCartoes() {
+        JPanel painel = new JPanel(new GridLayout(1, 0, 12, 0));
+        painel.add(cartaoPacotes);
+        Severidade[] ordem = {Severidade.CRITICA, Severidade.ALTA, Severidade.MEDIA, Severidade.BAIXA};
+        for (Severidade s : ordem) {
+            CartaoMetrica cartao = new CartaoMetrica("Alertas " + nomeSeveridade(s), Tema.corSeveridade(s));
+            cartoesPorSeveridade.put(s, cartao);
+            painel.add(cartao);
         }
         return painel;
     }
 
+    private static String nomeSeveridade(Severidade s) {
+        return switch (s) {
+            case CRITICA -> "críticos";
+            case ALTA -> "altos";
+            case MEDIA -> "médios";
+            case BAIXA -> "baixos";
+        };
+    }
+
     private void atualizarResumo() {
-        lblPacotes.setText("Pacotes: " + contador.get());
+        cartaoPacotes.setValor(contador.get());
         for (Severidade s : Severidade.values()) {
-            lblAlertasPorSeveridade.get(s).setText(s.name() + ": " + contagemAlertas.get(s));
+            cartoesPorSeveridade.get(s).setValor(contagemAlertas.get(s));
         }
     }
 
