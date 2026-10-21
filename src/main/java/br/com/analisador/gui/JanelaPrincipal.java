@@ -133,8 +133,11 @@ public final class JanelaPrincipal extends JFrame {
 
         JTable tabelaAlertas = new JTable(modeloAlertas);
         tabelaAlertas.setDefaultRenderer(Object.class, new RenderizadorSeveridade());
-        tabelaAlertas.getColumnModel().getColumn(0).setMaxWidth(70);
-        tabelaAlertas.getColumnModel().getColumn(1).setMaxWidth(90);
+        tabelaAlertas.getColumnModel().getColumn(0).setMaxWidth(80);
+        tabelaAlertas.getColumnModel().getColumn(1).setCellRenderer(new SeloSeveridade());
+        tabelaAlertas.getColumnModel().getColumn(1).setMinWidth(100);
+        tabelaAlertas.getColumnModel().getColumn(1).setMaxWidth(110);
+        tabelaAlertas.setRowHeight(Math.max(tabelaAlertas.getRowHeight(), new SeloSeveridade().getPreferredSize().height + 4));
         deixarCabecalhoEmNegrito(tabelaAlertas);
 
         JScrollPane painelPacotes = new JScrollPane(tabelaPacotes);
