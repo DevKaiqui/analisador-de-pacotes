@@ -31,9 +31,17 @@ public final class Tema {
         UIManager.put("TextComponent.arc", 10);
         UIManager.put("CheckBox.arc", 6);
         UIManager.put("ScrollBar.thumbArc", 999);
-        UIManager.put("ScrollBar.thumbInsets", new java.awt.Insets(2, 2, 2, 2));
+        UIManager.put("ScrollBar.thumbInsets", new Insets(2, 2, 2, 2));
         UIManager.put("ScrollBar.width", 12);
         UIManager.put("TitlePane.unifiedBackground", true);
+
+        // fonte um pouco maior e tabelas mais arejadas
+        UIManager.put("defaultFont", UIManager.getFont("defaultFont").deriveFont(13f));
+        UIManager.put("Table.rowHeight", 26);
+        UIManager.put("Table.cellMargins", new Insets(2, 8, 2, 8));
+        UIManager.put("TableHeader.height", 30);
+        UIManager.put("SplitPaneDivider.gripDotCount", 0);
+        UIManager.put("SplitPane.dividerSize", 10);
 
         // zebra das tabelas derivada do fundo do tema (funciona no claro e no escuro)
         Color fundoTabela = UIManager.getColor("Table.background");

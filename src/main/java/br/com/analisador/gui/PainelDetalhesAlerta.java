@@ -3,6 +3,7 @@ package br.com.analisador.gui;
 import br.com.analisador.detector.Alerta;
 import br.com.analisador.ia.ProvedorIA;
 import com.formdev.flatlaf.FlatClientProperties;
+import net.miginfocom.swing.MigLayout;
 
 import javax.swing.*;
 import java.awt.*;
@@ -44,7 +45,11 @@ public final class PainelDetalhesAlerta extends JPanel {
         JLabel vazio = new JLabel("Selecione um alerta na tabela para ver os detalhes.", SwingConstants.CENTER);
         vazio.putClientProperty(FlatClientProperties.STYLE, "foreground: $Label.disabledForeground");
         conteudo.add(vazio, VAZIO);
-        conteudo.add(montarDetalhes(botaoExplicar), DETALHES);
+        JScrollPane rolagemDetalhes = new JScrollPane(montarDetalhes(botaoExplicar),
+                ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED, ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
+        rolagemDetalhes.setBorder(null);
+        rolagemDetalhes.getVerticalScrollBar().setUnitIncrement(16);
+        conteudo.add(rolagemDetalhes, DETALHES);
         conteudo.setBorder(BorderFactory.createEmptyBorder(12, 16, 12, 16));
         add(conteudo, BorderLayout.CENTER);
         limpar();
@@ -53,52 +58,27 @@ public final class PainelDetalhesAlerta extends JPanel {
     private JPanel montarDetalhes(JButton botaoExplicar) {
         tipo.putClientProperty(FlatClientProperties.STYLE_CLASS, "h3");
         rodapeIA.putClientProperty(FlatClientProperties.STYLE, "font: -2 italic; foreground: $Label.disabledForeground");
-        explicacao.setRows(8);
-
-        JPanel cabecalho = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
-        cabecalho.add(tipo);
-        cabecalho.add(Box.createHorizontalStrut(10));
-        cabecalho.add(selo);
-
-        JPanel campos = new JPanel(new GridBagLayout());
-        adicionarCampo(campos, 0, "Hora", hora);
-        adicionarCampo(campos, 1, "Alvo", alvo);
-        adicionarCampo(campos, 2, "Descrição", descricao);
-
-        JPanel tituloIA = new JPanel(new BorderLayout(8, 0));
-        tituloIA.add(titulo("Explicação da IA"), BorderLayout.WEST);
-        tituloIA.add(botaoExplicar, BorderLayout.EAST);
 
         JScrollPane rolagem = new JScrollPane(explicacao);
         rolagem.putClientProperty(FlatClientProperties.STYLE, "arc: 10");
 
-        JPanel ia = new JPanel(new BorderLayout(0, 8));
-        ia.add(tituloIA, BorderLayout.NORTH);
-        ia.add(rolagem, BorderLayout.CENTER);
-        ia.add(rodapeIA, BorderLayout.SOUTH);
-
-        JPanel topo = new JPanel(new BorderLayout(0, 12));
-        topo.add(cabecalho, BorderLayout.NORTH);
-        topo.add(campos, BorderLayout.CENTER);
-        topo.add(new JSeparator(), BorderLayout.SOUTH);
-
-        JPanel painel = new JPanel(new BorderLayout(0, 12));
-        painel.add(topo, BorderLayout.NORTH);
-        painel.add(ia, BorderLayout.CENTER);
+        // a explicação fica com o espaço que sobrar, mas nunca some (altura mínima)
+        JPanel painel = new PainelRolavel(new MigLayout("fill, insets 0, gap 12 6, hidemode 3",
+                "[][grow, fill]", "[]10[][][]8[]8[][grow, fill][]"));
+        painel.add(tipo, "span 2, split 2");
+        painel.add(selo, "gapleft 6, wrap");
+        painel.add(titulo("Hora"));
+        painel.add(hora, "wmin 0, wrap");
+        painel.add(titulo("Alvo"));
+        painel.add(alvo, "wmin 0, wrap");
+        painel.add(titulo("Descrição"), "aligny top");
+        painel.add(descricao, "wmin 0, wrap");
+        painel.add(new JSeparator(), "span 2, growx, wrap");
+        painel.add(titulo("Explicação da IA"), "span 2, split 2, aligny center");
+        painel.add(botaoExplicar, "gapleft push, wrap");
+        painel.add(rolagem, "span 2, grow, hmin 72, wmin 0, wrap");
+        painel.add(rodapeIA, "span 2, wmin 0");
         return painel;
-    }
-
-    private static void adicionarCampo(JPanel painel, int linha, String nome, JComponent valor) {
-        GridBagConstraints c = new GridBagConstraints();
-        c.gridy = linha;
-        c.anchor = GridBagConstraints.NORTHWEST;
-        c.insets = new Insets(4, 0, 4, 12);
-        painel.add(titulo(nome), c);
-        c.gridx = 1;
-        c.weightx = 1;
-        c.fill = GridBagConstraints.HORIZONTAL;
-        c.insets = new Insets(4, 0, 4, 0);
-        painel.add(valor, c);
     }
 
     private static JLabel titulo(String texto) {
@@ -121,6 +101,7 @@ public final class PainelDetalhesAlerta extends JPanel {
         t.setWrapStyleWord(true);
         t.setFocusable(true);
         t.setOpaque(false);
+        t.setMargin(new Insets(0, 0, 0, 0));
         t.setFont(UIManager.getFont("Label.font"));
         return t;
     }
@@ -168,5 +149,22 @@ public final class PainelDetalhesAlerta extends JPanel {
         explicacao.setForeground(UIManager.getColor("Actions.Red"));
         explicacao.setText("Não foi possível obter a explicação.\n\n" + mensagem);
         explicacao.setCaretPosition(0);
+    }
+
+    /**
+     * Acompanha a largura da rolagem (para os textos quebrarem linha) e ocupa toda a altura
+     * quando cabe; só rola quando a janela fica baixa demais.
+     */
+    private static final class PainelRolavel extends JPanel implements Scrollable {
+        PainelRolavel(LayoutManager layout) { super(layout); }
+
+        @Override public Dimension getPreferredScrollableViewportSize() { return getPreferredSize(); }
+        @Override public int getScrollableUnitIncrement(Rectangle r, int o, int d) { return 16; }
+        @Override public int getScrollableBlockIncrement(Rectangle r, int o, int d) { return r.height; }
+        @Override public boolean getScrollableTracksViewportWidth() { return true; }
+
+        @Override public boolean getScrollableTracksViewportHeight() {
+            return getParent() instanceof JViewport v && v.getHeight() >= getMinimumSize().height;
+        }
     }
 }

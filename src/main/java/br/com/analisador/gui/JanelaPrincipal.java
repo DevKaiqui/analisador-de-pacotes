@@ -18,8 +18,10 @@ import br.com.analisador.ia.ProvedorIA;
 import org.pcap4j.core.PcapNetworkInterface;
 import org.pcap4j.packet.Packet;
 
+import com.formdev.flatlaf.FlatClientProperties;
+import net.miginfocom.swing.MigLayout;
+
 import javax.swing.*;
-import javax.swing.border.TitledBorder;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
@@ -59,7 +61,7 @@ public final class JanelaPrincipal extends JFrame {
     private final JLabel textoStatusCaptura = new JLabel("Parado");
     private final JLabel status = new JLabel("Pronto.");
 
-    private final CartaoMetrica cartaoPacotes = new CartaoMetrica("Pacotes capturados", UIManager.getColor("Component.accentColor"));
+    private final CartaoMetrica cartaoPacotes = new CartaoMetrica("Pacotes", UIManager.getColor("Component.accentColor"));
     private final Map<Severidade, CartaoMetrica> cartoesPorSeveridade = new EnumMap<>(Severidade.class);
     private final Map<Severidade, Integer> contagemAlertas = new EnumMap<>(Severidade.class);
 
@@ -83,7 +85,10 @@ public final class JanelaPrincipal extends JFrame {
     public JanelaPrincipal() {
         super("Analisador de Pacotes");
         setDefaultCloseOperation(EXIT_ON_CLOSE);
-        setSize(1000, 640);
+        // ocupa até 90% da tela, sem passar de 1440x900, e não encolhe a ponto de quebrar o layout
+        Rectangle tela = GraphicsEnvironment.getLocalGraphicsEnvironment().getMaximumWindowBounds();
+        setSize(Math.min(1440, tela.width * 9 / 10), Math.min(900, tela.height * 9 / 10));
+        setMinimumSize(new Dimension(1080, 680));
         setLocationRelativeTo(null);
         for (Severidade s : Severidade.values()) contagemAlertas.put(s, 0);
         montarLayout();
@@ -92,46 +97,17 @@ public final class JanelaPrincipal extends JFrame {
     }
 
     private void montarLayout() {
-        JPanel painelCaptura = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 4));
-        painelCaptura.setBorder(tituloSecao("Captura"));
-        painelCaptura.add(new JLabel("Placa:"));
-        painelCaptura.add(comboInterfaces);
-        painelCaptura.add(botaoIniciar);
-        painelCaptura.add(botaoParar);
-
-        JPanel painelFiltro = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 4));
-        painelFiltro.setBorder(tituloSecao("Filtro"));
-        painelFiltro.add(new JLabel("BPF:"));
-        painelFiltro.add(campoFiltro);
-        painelFiltro.add(new JLabel("Rápidos:"));
-        painelFiltro.add(comboFiltrosRapidos);
-
-        JPanel painelExibicao = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 4));
-        painelExibicao.setBorder(tituloSecao("Exibição"));
-        painelExibicao.add(checkSensivel);
-        painelExibicao.add(botaoLimpar);
-        bolinhaStatus.setForeground(Tema.corInativo());
-        painelExibicao.add(bolinhaStatus);
-        painelExibicao.add(textoStatusCaptura);
-
         Tema.botaoPrimario(botaoIniciar, "$Actions.Green", "#ffffff");
         botaoIniciar.setIcon(Tema.icone("iniciar", Color.WHITE));
         Tema.botaoPrimario(botaoParar, "$Actions.Red", "#ffffff");
         botaoParar.setIcon(Tema.icone("parar", Color.WHITE));
         botaoLimpar.setIcon(Tema.icone("limpar", "Button.foreground"));
-
-        JPanel controles = new JPanel();
-        controles.setLayout(new BoxLayout(controles, BoxLayout.Y_AXIS));
-        JPanel linha1 = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
-        linha1.add(painelCaptura);
-        linha1.add(painelFiltro);
-        linha1.add(painelExibicao);
-        controles.add(linha1);
-
-        JPanel topo = new JPanel(new BorderLayout(8, 8));
-        topo.add(controles, BorderLayout.NORTH);
-        topo.add(montarCartoes(), BorderLayout.CENTER);
-        topo.add(grafico, BorderLayout.EAST);
+        botaoLimpar.setToolTipText("Apaga pacotes, alertas e contadores da tela");
+        Tema.botaoPrimario(botaoExplicarIA, Tema.DESTAQUE, "#0b1a1e");
+        botaoExplicarIA.setIcon(Tema.icone("ia", new Color(0x0B1A1E)));
+        botaoExplicarIA.setToolTipText("Pede à IA uma explicação em português do alerta selecionado (ou dê duplo clique no alerta)");
+        campoFiltro.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, "ex.: tcp port 443");
+        status.putClientProperty(FlatClientProperties.STYLE, "font: -1; foreground: $Label.disabledForeground");
 
         JTable tabelaPacotes = new JTable(modeloPacotes);
         ajustarLargurasPacotes(tabelaPacotes);
@@ -139,20 +115,16 @@ public final class JanelaPrincipal extends JFrame {
 
         JTable tabelaAlertas = new JTable(modeloAlertas);
         tabelaAlertas.setDefaultRenderer(Object.class, new RenderizadorSeveridade());
+        tabelaAlertas.getColumnModel().getColumn(0).setMinWidth(72);
         tabelaAlertas.getColumnModel().getColumn(0).setMaxWidth(80);
         tabelaAlertas.getColumnModel().getColumn(1).setCellRenderer(new SeloSeveridade());
         tabelaAlertas.getColumnModel().getColumn(1).setMinWidth(100);
         tabelaAlertas.getColumnModel().getColumn(1).setMaxWidth(110);
-        tabelaAlertas.setRowHeight(Math.max(tabelaAlertas.getRowHeight(), new SeloSeveridade().getPreferredSize().height + 4));
+        tabelaAlertas.getColumnModel().getColumn(2).setPreferredWidth(130);
+        tabelaAlertas.getColumnModel().getColumn(3).setPreferredWidth(420);
+        tabelaAlertas.setRowHeight(Math.max(tabelaAlertas.getRowHeight(), new SeloSeveridade().getPreferredSize().height + 6));
         deixarCabecalhoEmNegrito(tabelaAlertas);
 
-        JScrollPane painelPacotes = new JScrollPane(tabelaPacotes);
-        painelPacotes.setBorder(BorderFactory.createTitledBorder("Pacotes"));
-        JScrollPane rolagemAlertas = new JScrollPane(tabelaAlertas);
-
-        Tema.botaoPrimario(botaoExplicarIA, Tema.DESTAQUE, "#0b1a1e");
-        botaoExplicarIA.setIcon(Tema.icone("ia", new Color(0x0B1A1E)));
-        botaoExplicarIA.setToolTipText("Pede à IA uma explicação em português do alerta selecionado (ou dê duplo clique no alerta)");
         botaoExplicarIA.addActionListener(e -> explicarComIA(tabelaAlertas));
         tabelaAlertas.addMouseListener(new MouseAdapter() {
             @Override public void mouseClicked(MouseEvent e) {
@@ -163,21 +135,24 @@ public final class JanelaPrincipal extends JFrame {
             if (!e.getValueIsAdjusting()) mostrarDetalhes(tabelaAlertas);
         });
 
-        JSplitPane alertasEDetalhes = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, rolagemAlertas, detalhes);
-        alertasEDetalhes.setResizeWeight(0.62);
+        JSplitPane alertasEDetalhes = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT,
+                rolagemArredondada(tabelaAlertas), detalhes);
+        alertasEDetalhes.setResizeWeight(0.6);
         alertasEDetalhes.setBorder(null);
 
-        JPanel painelAlertas = new JPanel(new BorderLayout());
-        painelAlertas.setBorder(BorderFactory.createTitledBorder("Alertas de segurança"));
-        painelAlertas.add(alertasEDetalhes, BorderLayout.CENTER);
+        JSplitPane divisao = new JSplitPane(JSplitPane.VERTICAL_SPLIT,
+                secao("Pacotes", "mais recentes no topo", rolagemArredondada(tabelaPacotes)),
+                secao("Alertas de segurança", "selecione um alerta para ver os detalhes", alertasEDetalhes));
+        divisao.setResizeWeight(0.34);
+        divisao.setBorder(null);
 
-        JSplitPane divisao = new JSplitPane(JSplitPane.VERTICAL_SPLIT, painelPacotes, painelAlertas);
-        divisao.setResizeWeight(0.6);
-
-        setLayout(new BorderLayout(6, 6));
-        add(topo, BorderLayout.NORTH);
-        add(divisao, BorderLayout.CENTER);
-        add(status, BorderLayout.SOUTH);
+        JPanel raiz = new JPanel(new MigLayout("fill, insets 14 18 8 18, gap 0 12", "[grow, fill]", "[][][][grow, fill][]"));
+        raiz.add(montarCabecalho(), "wrap");
+        raiz.add(montarControles(), "wrap");
+        raiz.add(montarMetricas(), "wrap");
+        raiz.add(divisao, "wrap");
+        raiz.add(status);
+        setContentPane(raiz);
 
         comboFiltrosRapidos.addActionListener(e -> {
             FiltroRapido f = (FiltroRapido) comboFiltrosRapidos.getSelectedItem();
@@ -202,25 +177,89 @@ public final class JanelaPrincipal extends JFrame {
         });
     }
 
-    /** Cartões do topo: total de pacotes e alertas por severidade, da mais grave para a mais leve. */
-    private JPanel montarCartoes() {
-        JPanel painel = new JPanel(new GridLayout(1, 0, 12, 0));
+    /** Título do programa à esquerda; estado da captura e opções de exibição à direita. */
+    private JPanel montarCabecalho() {
+        JLabel titulo = new JLabel("Analisador de Pacotes");
+        titulo.putClientProperty(FlatClientProperties.STYLE_CLASS, "h2");
+        JLabel subtitulo = new JLabel("Captura de tráfego e detecção de ameaças em tempo real");
+        subtitulo.putClientProperty(FlatClientProperties.STYLE, "foreground: $Label.disabledForeground");
+        bolinhaStatus.setForeground(Tema.corInativo());
+        textoStatusCaptura.putClientProperty(FlatClientProperties.STYLE, "font: bold");
+
+        JPanel painel = new JPanel(new MigLayout("insets 0, gap 8 0", "[]push[]4[]24[]12[]", "[]2[]"));
+        painel.add(titulo);
+        painel.add(bolinhaStatus, "spany 2, aligny center");
+        painel.add(textoStatusCaptura, "spany 2, aligny center");
+        painel.add(checkSensivel, "spany 2, aligny center");
+        painel.add(botaoLimpar, "spany 2, aligny center, wrap");
+        painel.add(subtitulo);
+        return painel;
+    }
+
+    /** Barra de captura e filtro, num cartão arredondado. */
+    private JPanel montarControles() {
+        JPanel painel = new JPanel(new MigLayout("insets 10 14, gap 8",
+                "[][grow 30, fill, 150::360][][]24[][grow 70, fill, 90::][][110::, fill]", "[center]"));
+        painel.putClientProperty(FlatClientProperties.STYLE, "arc: 14; background: lighten($Panel.background, 4%)");
+        painel.add(rotuloCampo("Placa"));
+        painel.add(comboInterfaces);
+        painel.add(botaoIniciar);
+        painel.add(botaoParar);
+        painel.add(rotuloCampo("Filtro BPF"));
+        painel.add(campoFiltro);
+        painel.add(rotuloCampo("Rápidos"));
+        painel.add(comboFiltrosRapidos);
+        return painel;
+    }
+
+    /** Cartões do topo (pacotes e alertas por severidade, da mais grave para a mais leve) e o gráfico. */
+    private JPanel montarMetricas() {
+        JPanel painel = new JPanel(new MigLayout("insets 0, gap 12",
+                "[sg cartao, grow, fill, 100::][sg cartao, grow, fill, 100::][sg cartao, grow, fill, 100::]"
+                        + "[sg cartao, grow, fill, 100::][sg cartao, grow, fill, 100::][grow 300, fill, 240::]", "[118!, fill]"));
         painel.add(cartaoPacotes);
         Severidade[] ordem = {Severidade.CRITICA, Severidade.ALTA, Severidade.MEDIA, Severidade.BAIXA};
         for (Severidade s : ordem) {
-            CartaoMetrica cartao = new CartaoMetrica("Alertas " + nomeSeveridade(s), Tema.corSeveridade(s));
+            CartaoMetrica cartao = new CartaoMetrica(nomeSeveridade(s), Tema.corSeveridade(s));
+            cartao.setToolTipText("Alertas de severidade " + SeloSeveridade.rotulo(s).toLowerCase());
             cartoesPorSeveridade.put(s, cartao);
             painel.add(cartao);
         }
+        painel.add(grafico);
         return painel;
+    }
+
+    /** Bloco com título e dica acima do conteúdo (substitui as bordas com título). */
+    private static JPanel secao(String titulo, String dica, JComponent conteudo) {
+        JLabel rotulo = new JLabel(titulo);
+        rotulo.putClientProperty(FlatClientProperties.STYLE_CLASS, "h4");
+        JLabel subtitulo = new JLabel(dica);
+        subtitulo.putClientProperty(FlatClientProperties.STYLE, "font: -1; foreground: $Label.disabledForeground");
+        JPanel painel = new JPanel(new MigLayout("fill, insets 4 0 4 0, gap 8 6", "[][grow]", "[][grow, fill]"));
+        painel.add(rotulo);
+        painel.add(subtitulo, "wrap");
+        painel.add(conteudo, "span, grow");
+        return painel;
+    }
+
+    private static JScrollPane rolagemArredondada(JComponent conteudo) {
+        JScrollPane rolagem = new JScrollPane(conteudo);
+        rolagem.putClientProperty(FlatClientProperties.STYLE, "arc: 12");
+        return rolagem;
+    }
+
+    private static JLabel rotuloCampo(String texto) {
+        JLabel l = new JLabel(texto);
+        l.putClientProperty(FlatClientProperties.STYLE, "foreground: $Label.disabledForeground");
+        return l;
     }
 
     private static String nomeSeveridade(Severidade s) {
         return switch (s) {
-            case CRITICA -> "críticos";
-            case ALTA -> "altos";
-            case MEDIA -> "médios";
-            case BAIXA -> "baixos";
+            case CRITICA -> "Críticos";
+            case ALTA -> "Altos";
+            case MEDIA -> "Médios";
+            case BAIXA -> "Baixos";
         };
     }
 
@@ -229,12 +268,6 @@ public final class JanelaPrincipal extends JFrame {
         for (Severidade s : Severidade.values()) {
             cartoesPorSeveridade.get(s).setValor(contagemAlertas.get(s));
         }
-    }
-
-    private static TitledBorder tituloSecao(String texto) {
-        TitledBorder borda = BorderFactory.createTitledBorder(texto);
-        borda.setTitleFont(borda.getTitleFont().deriveFont(Font.BOLD));
-        return borda;
     }
 
     /** Nº e portas ficam estreitas; Origem/Destino, mais largas, concentram o espaço disponível. */

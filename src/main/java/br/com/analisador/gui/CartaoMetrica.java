@@ -27,6 +27,7 @@ public final class CartaoMetrica extends JPanel {
         valor.putClientProperty(FlatClientProperties.STYLE, "font: bold +14");
         valor.setForeground(cor);
 
+        setMinimumSize(new Dimension(100, 0));
         add(rotulo, BorderLayout.NORTH);
         add(valor, BorderLayout.CENTER);
     }
