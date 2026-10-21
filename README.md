@@ -45,7 +45,7 @@ Clique duas vezes em `target/analisador-de-pacotes-1.0.0.jar` (ou `java -jar tar
 
 ## IA integrada: "Explicar com IA"
 
-Na tabela **Alertas de segurança**, selecione um alerta e clique em **Explicar com IA** (ou dê duplo clique nele). Uma IA (API do Claude) explica em português, em quatro partes: **o que significa**, **por que importa**, **pode ser falso positivo?** e **o que fazer**. A chamada roda em segundo plano, então a captura não trava, e respostas já recebidas ficam em cache (perguntar de novo sobre o mesmo alerta não gasta a API).
+Na tabela **Alertas de segurança**, selecione um alerta e clique em **Explicar com IA** (ou dê duplo clique nele). Uma IA (API do Claude ou, se preferir, uma [IA local offline](#ia-local-offline)) explica em português, em quatro partes: **o que significa**, **por que importa**, **pode ser falso positivo?** e **o que fazer**. A chamada roda em segundo plano, então a captura não trava, e respostas já recebidas ficam em cache (perguntar de novo sobre o mesmo alerta não gasta a API).
 
 ### Configuração
 
@@ -62,11 +62,42 @@ Opcional: `ANALISADOR_MODELO` troca o modelo (padrão: `claude-haiku-4-5`, rápi
 
 - **IPs e MACs nunca saem completos.** Antes de qualquer envio, o texto passa por uma anonimização própria (`192.168.1.50` → `192.168.x.x`, `AA:BB:CC:11:22:33` → `AA:BB:CC:**:**:**`), mesmo com "Mostrar dados sensíveis" ligado.
 - Só o **texto do alerta** é enviado (tipo, severidade, alvo mascarado e descrição). Pacotes brutos e conteúdo de tráfego não são enviados. Em alertas de DNS, o nome de domínio consultado faz parte da descrição e é enviado.
-- A primeira consulta de cada sessão pede confirmação antes de enviar.
+- A primeira consulta de cada sessão pede confirmação antes de enviar (no modo local não há envio para a internet, então não há confirmação).
 - **Defesa contra prompt injection:** o conteúdo do alerta vem da rede (um nome de DNS, por exemplo, é controlado por quem ataca). Ele é enviado dentro de uma tag de dados, com os sinais `<` `>` removidos e tamanho limitado, e a IA é instruída a nunca obedecer instruções que apareçam ali. A resposta é exibida como texto puro.
 - A explicação é um **apoio ao estudo**, não um veredito: confirme sempre antes de agir.
 
-Código: pacote `br.com.analisador.ia` (`ClienteClaude`, `AnonimizadorParaIA`, `ExplicadorDeAlertas`). Os testes da camada de IA não usam rede nem chave.
+### IA local (offline)
+
+Quer explicações sem chave, sem custo e sem que nada saia do computador? Use o [Ollama](https://ollama.com), que roda modelos de linguagem na sua própria máquina.
+
+1. Instale o Ollama: baixe em [ollama.com/download](https://ollama.com/download) (Windows/macOS) ou, no Linux, `curl -fsSL https://ollama.com/install.sh | sh`.
+2. Baixe o modelo (uma vez, cerca de 2 GB):
+   ```
+   ollama pull llama3.2
+   ```
+3. Deixe o Ollama rodando: no Windows/macOS basta o aplicativo aberto (ícone perto do relógio); no terminal, `ollama serve`.
+4. Ative o modo local e reabra o programa:
+   ```
+   setx ANALISADOR_IA local                 :: Windows
+   export ANALISADOR_IA=local               # Linux/macOS
+   ```
+
+| Variável | Valores | Padrão |
+|---|---|---|
+| `ANALISADOR_IA` | `local` usa o Ollama; qualquer outro valor (ou ausente) usa o Claude | Claude |
+| `OLLAMA_MODELO` | qualquer modelo baixado com `ollama pull` (ex.: `llama3.2:1b`, `qwen2.5:3b`) | `llama3.2` |
+
+O programa fala só com `http://localhost:11434`. Se o Ollama não estiver rodando ou o modelo não estiver baixado, a janela de explicação diz exatamente o que fazer. O rodapé da explicação mostra quem respondeu: **Claude (API)** ou **IA local (Ollama)**. As regras de segurança acima valem igual para os dois (anonimização de IP/MAC, alerta tratado como dado, resposta em texto puro).
+
+| | Claude (API) | IA local (Ollama) |
+|---|---|---|
+| **Qualidade** | Alta: explicações mais precisas e bem escritas em português | Boa para o básico; modelos pequenos erram mais e podem fugir do formato |
+| **Custo** | Pago por uso (frações de centavo por alerta; respostas ficam em cache) | Grátis |
+| **Privacidade** | Texto do alerta (já anonimizado) vai para a Anthropic | Nada sai do computador |
+| **Precisa de internet?** | Sim | Não (só para instalar e baixar o modelo) |
+| **Requisitos** | Chave `ANTHROPIC_API_KEY` | Ollama instalado e ~2 GB de disco; mais lento em PCs sem GPU |
+
+Código: pacote `br.com.analisador.ia` (`ClienteClaude`, `ClienteOllama`, `ProvedorIA`, `AnonimizadorParaIA`, `ExplicadorDeAlertas`). Os testes da camada de IA não usam rede nem chave.
 
 ## Terminal
 
