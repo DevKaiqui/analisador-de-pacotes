@@ -43,6 +43,31 @@ Clique duas vezes em `target/analisador-de-pacotes-1.0.0.jar` (ou `java -jar tar
 - Tabela **Alertas de segurança**: mostra os alertas das 4 regras acima, com a severidade colorida por linha.
 - Barra de status: exibe o total de pacotes e o resumo de alertas em tempo real.
 
+## IA integrada: "Explicar com IA"
+
+Na tabela **Alertas de segurança**, selecione um alerta e clique em **Explicar com IA** (ou dê duplo clique nele). Uma IA (API do Claude) explica em português, em quatro partes: **o que significa**, **por que importa**, **pode ser falso positivo?** e **o que fazer**. A chamada roda em segundo plano, então a captura não trava, e respostas já recebidas ficam em cache (perguntar de novo sobre o mesmo alerta não gasta a API).
+
+### Configuração
+
+Crie uma chave em [console.anthropic.com](https://console.anthropic.com) e defina a variável de ambiente antes de abrir o programa:
+
+```
+setx ANTHROPIC_API_KEY "sua-chave"      :: Windows (reabra o programa depois)
+export ANTHROPIC_API_KEY="sua-chave"    # Linux/macOS
+```
+
+Opcional: `ANALISADOR_MODELO` troca o modelo (padrão: `claude-haiku-5-5`, rápido e barato). A chave **nunca** fica no código nem em arquivo do projeto; sem ela, o botão apenas mostra como configurar.
+
+### Privacidade e segurança
+
+- **IPs e MACs nunca saem completos.** Antes de qualquer envio, o texto passa por uma anonimização própria (`192.168.1.50` → `192.168.x.x`, `AA:BB:CC:11:22:33` → `AA:BB:CC:**:**:**`), mesmo com "Mostrar dados sensíveis" ligado.
+- Só o **texto do alerta** é enviado (tipo, severidade, alvo mascarado e descrição). Pacotes brutos e conteúdo de tráfego não são enviados. Em alertas de DNS, o nome de domínio consultado faz parte da descrição e é enviado.
+- A primeira consulta de cada sessão pede confirmação antes de enviar.
+- **Defesa contra prompt injection:** o conteúdo do alerta vem da rede (um nome de DNS, por exemplo, é controlado por quem ataca). Ele é enviado dentro de uma tag de dados, com os sinais `<` `>` removidos e tamanho limitado, e a IA é instruída a nunca obedecer instruções que apareçam ali. A resposta é exibida como texto puro.
+- A explicação é um **apoio ao estudo**, não um veredito: confirme sempre antes de agir.
+
+Código: pacote `br.com.analisador.ia` (`ClienteClaude`, `AnonimizadorParaIA`, `ExplicadorDeAlertas`). Os testes da camada de IA não usam rede nem chave.
+
 ## Terminal
 
 ```

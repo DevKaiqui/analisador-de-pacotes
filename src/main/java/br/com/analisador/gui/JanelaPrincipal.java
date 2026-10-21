@@ -9,6 +9,8 @@ import br.com.analisador.detector.Alerta;
 import br.com.analisador.detector.DetectorDeAmeacas;
 import br.com.analisador.detector.Mascara;
 import br.com.analisador.detector.Severidade;
+import br.com.analisador.ia.ClienteClaude;
+import br.com.analisador.ia.ExplicadorDeAlertas;
 
 import org.pcap4j.core.PcapNetworkInterface;
 import org.pcap4j.packet.Packet;
@@ -17,9 +19,13 @@ import javax.swing.*;
 import javax.swing.border.TitledBorder;
 import javax.swing.table.DefaultTableCellRenderer;
 import java.awt.*;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -51,6 +57,7 @@ public final class JanelaPrincipal extends JFrame {
     private final JButton botaoIniciar = new JButton("Iniciar");
     private final JButton botaoParar = new JButton("Parar");
     private final JButton botaoLimpar = new JButton("Limpar");
+    private final JButton botaoExplicarIA = new JButton("Explicar com IA");
     private final JLabel bolinhaStatus = new JLabel("●");
     private final JLabel textoStatusCaptura = new JLabel("Parado");
     private final JLabel status = new JLabel("Pronto.");
@@ -67,6 +74,10 @@ public final class JanelaPrincipal extends JFrame {
     private final PacketAnalyzer analyzer = new PacketAnalyzer(masker);
     private final AtomicInteger contador = new AtomicInteger();
     private DetectorDeAmeacas detector;
+
+    /** Criado na primeira consulta à IA; guarda as respostas já recebidas. */
+    private ExplicadorDeAlertas explicador;
+    private boolean envioParaIAConfirmado = false;
 
     public JanelaPrincipal() {
         super("Analisador de Pacotes");
@@ -132,8 +143,24 @@ public final class JanelaPrincipal extends JFrame {
 
         JScrollPane painelPacotes = new JScrollPane(tabelaPacotes);
         painelPacotes.setBorder(BorderFactory.createTitledBorder("Pacotes"));
-        JScrollPane painelAlertas = new JScrollPane(tabelaAlertas);
+        JScrollPane rolagemAlertas = new JScrollPane(tabelaAlertas);
+
+        estilizarBotaoPrimario(botaoExplicarIA, new Color(0x4A, 0x3A, 0xB8));
+        botaoExplicarIA.setToolTipText("Pede à IA uma explicação em português do alerta selecionado (ou dê duplo clique no alerta)");
+        botaoExplicarIA.addActionListener(e -> explicarComIA(tabelaAlertas));
+        tabelaAlertas.addMouseListener(new MouseAdapter() {
+            @Override public void mouseClicked(MouseEvent e) {
+                if (e.getClickCount() == 2) explicarComIA(tabelaAlertas);
+            }
+        });
+        JPanel barraAlertas = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 4));
+        barraAlertas.add(botaoExplicarIA);
+        barraAlertas.add(new JLabel("Selecione um alerta (ou dê duplo clique) para a IA explicar."));
+
+        JPanel painelAlertas = new JPanel(new BorderLayout());
         painelAlertas.setBorder(BorderFactory.createTitledBorder("Alertas de segurança"));
+        painelAlertas.add(rolagemAlertas, BorderLayout.CENTER);
+        painelAlertas.add(barraAlertas, BorderLayout.SOUTH);
 
         JSplitPane divisao = new JSplitPane(JSplitPane.VERTICAL_SPLIT, painelPacotes, painelAlertas);
         divisao.setResizeWeight(0.6);
@@ -286,6 +313,59 @@ public final class JanelaPrincipal extends JFrame {
                             + "\n\nDicas: rode como administrador; confira o filtro BPF.",
                     "Erro", JOptionPane.ERROR_MESSAGE);
         }
+    }
+
+    /** Pede à IA a explicação do alerta selecionado, sem travar a janela. */
+    private void explicarComIA(JTable tabelaAlertas) {
+        int linha = tabelaAlertas.getSelectedRow();
+        if (linha < 0) {
+            status.setText("Selecione um alerta na tabela para a IA explicar.");
+            return;
+        }
+        Alerta alerta = modeloAlertas.get(tabelaAlertas.convertRowIndexToModel(linha));
+
+        if (explicador == null) {
+            Optional<ClienteClaude> cliente = ClienteClaude.doAmbiente();
+            if (cliente.isEmpty()) {
+                JOptionPane.showMessageDialog(this,
+                        "Para usar a IA, defina a variável de ambiente " + ClienteClaude.VARIAVEL_CHAVE
+                                + " com a sua chave da API da Anthropic\n(console.anthropic.com) e abra o programa de novo.\n\n"
+                                + "No Windows (cmd):  setx " + ClienteClaude.VARIAVEL_CHAVE + " \"sua-chave\"\n\n"
+                                + "A chave nunca é gravada no programa.",
+                        "IA não configurada", JOptionPane.INFORMATION_MESSAGE);
+                return;
+            }
+            explicador = new ExplicadorDeAlertas(cliente.get());
+        }
+
+        if (!envioParaIAConfirmado) {
+            int resposta = JOptionPane.showConfirmDialog(this,
+                    "O texto do alerta será enviado à API da Anthropic para gerar a explicação.\n"
+                            + "IPs e MACs são mascarados antes do envio, mesmo com \"Mostrar dados sensíveis\" ligado.\n\n"
+                            + "Continuar?",
+                    "Enviar alerta para a IA", JOptionPane.OK_CANCEL_OPTION, JOptionPane.QUESTION_MESSAGE);
+            if (resposta != JOptionPane.OK_OPTION) return;
+            envioParaIAConfirmado = true;
+        }
+
+        DialogoExplicacaoIA dialogo = new DialogoExplicacaoIA(this, alerta);
+        dialogo.setVisible(true);
+        ExplicadorDeAlertas usado = explicador;
+        new SwingWorker<String, Void>() {
+            @Override protected String doInBackground() throws Exception {
+                return usado.explicar(alerta);
+            }
+            @Override protected void done() {
+                try {
+                    dialogo.mostrarExplicacao(get());
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                } catch (ExecutionException e) {
+                    Throwable causa = e.getCause() != null ? e.getCause() : e;
+                    dialogo.mostrarErro(causa.getMessage());
+                }
+            }
+        }.execute();
     }
 
     private void registrarAlerta(Alerta alerta) {
