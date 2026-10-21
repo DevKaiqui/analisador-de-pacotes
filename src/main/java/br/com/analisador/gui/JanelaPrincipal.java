@@ -426,9 +426,7 @@ public final class JanelaPrincipal extends JFrame {
 
     public static void main(String[] args) {
         Npcap.configurar();
-        try {
-            UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
-        } catch (Exception ignored) { }
+        Tema.aplicar(); // antes de criar qualquer componente
         SwingUtilities.invokeLater(() -> new JanelaPrincipal().setVisible(true));
     }
 }

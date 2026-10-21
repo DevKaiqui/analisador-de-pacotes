@@ -13,6 +13,7 @@
         <maven.compiler.release>17</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <pcap4j.version>1.8.2</pcap4j.version>
+        <flatlaf.version>3.5.4</flatlaf.version>
         <classe.principal>br.com.analisador.gui.JanelaPrincipal</classe.principal>
     </properties>
 
@@ -36,6 +37,11 @@
             <groupId>com.google.code.gson</groupId>
             <artifactId>gson</artifactId>
             <version>2.11.0</version>
+        </dependency>
+        <dependency>
+            <groupId>com.formdev</groupId>
+            <artifactId>flatlaf</artifactId>
+            <version>${flatlaf.version}</version>
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
